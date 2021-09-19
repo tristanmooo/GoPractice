@@ -17,42 +17,20 @@ import (
 type ServerHandler struct{}
 
 func signalf() error {
-	signCh := make(chan os.Signal)
+	signalCh := make(chan os.Signal)
 
-	signal.Notify(signCh)
-	s := <-signCh
+	signal.Notify(signalCh)
+	s := <-signalCh
 	fmt.Println("catch system signal", s)
 	switch s {
 	case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
 		return errors.New("Found return signal, exit. ")
-		//
 	default:
 		fmt.Println("Unknow signal received.")
 	}
 
 	return nil
 }
-
-//校验是否有协程已发生错误
-func CheckGoroutineErr(errContext context.Context) error {
-	select {
-	case <-errContext.Done():
-		return errContext.Err()
-	default:
-		return nil
-	}
-}
-
-// func (server myserver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-// 	switch r.URL.String() {
-// 	case "/":
-// 		fmt.Fprintf(w, "get server")
-// 	case "/test":
-// 		fmt.Fprintf(w, "test")
-// 	default:
-// 		fmt.Fprintf(w, "unknow http")
-// 	}
-// }
 
 func (handler ServerHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	switch req.URL.Path {
@@ -80,7 +58,7 @@ func main() {
 	}
 
 	group.Go(func() error {
-		defer fmt.Println("Now stop listening for requests.")
+		defer fmt.Println("GoRoutine 1: Now stop listening for requests.")
 		return myServer.ListenAndServe()
 	})
 
@@ -88,7 +66,7 @@ func main() {
 	group.Go(func() error {
 		select {
 		case <-errctx.Done():
-			fmt.Println("Now shutdown the server.")
+			fmt.Println("GoRoutine 2: Now shutdown the server.")
 			return myServer.Shutdown(errctx)
 		}
 		return nil
@@ -98,7 +76,7 @@ func main() {
 	group.Go(func() error {
 		err := signalf()
 		if err != nil {
-			fmt.Println("Received exit signal.")
+			fmt.Println("GoRoutine 3: Received exit signal.")
 			return err
 		}
 		return nil
